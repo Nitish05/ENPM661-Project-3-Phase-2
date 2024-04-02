@@ -1,4 +1,18 @@
+#!/usr/bin/env python3
+# Testing saving wheel velocities along with the path
+
 # Import necessary libraries
+
+
+
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+import sys
+import select
+import tty
+import termios
+from pynput import keyboard
 import cv2
 import numpy as np
 from queue import PriorityQueue
@@ -6,8 +20,8 @@ import matplotlib.pyplot as plt
 import time
 import random
 
-RPM1 = 20
-RPM2 = 40
+RPM1 = 5
+RPM2 = 10
 R = 3.3
 K = (2*np.pi*R)/60
 Ul = RPM1 * K
@@ -18,12 +32,24 @@ L = 28.7
 canvas_height = 200
 canvas_width = 600
 robo_radius = 22
-# clearance_distance = 1
-# Define the colors
+
 clearance_color = (127, 127, 127)
 obstacle_color = (0, 0, 0)
 free_space_color = (255, 255, 255)
 threshold = 2.0
+
+class VelocityPublisher(Node):
+    def __init__(self):
+        super().__init__('velocity_publisher')
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        time.sleep(2)  # Give some time for the publisher to set up
+
+    def publish_velocity(self, linear_velocity, angular_velocity):
+        msg = Twist()
+        msg.linear.x = linear_velocity
+        msg.angular.z = angular_velocity
+        self.publisher_.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg)
 
 # Initialize a white canvas
 canvas = np.ones((canvas_height, canvas_width, 3), dtype="uint8") * 255
@@ -101,7 +127,7 @@ def get_neighbors(node):
         # neighbours.append(((X_new, Y_new, thetan_deg), 1))
         if is_free(X_new, Y_new):
             cost = ((initial_x - X_new)**2 + (initial_y - Y_new)**2)**0.5
-            neighbours.append(((X_new, Y_new, thetan_deg), cost))
+            neighbours.append(((X_new, Y_new, thetan_deg), cost, (action[0], action[1])))
             # cv2.circle(canvas, (int(round(X_new)), int(round(Y_new))), 1, (255, 0, 0), -1)
         
     return neighbours
@@ -128,7 +154,7 @@ def a_star(start, goal):
             goal = current_node[0]
             return came_from, cost_so_far, goal  # Return the path
             
-        for next_node, cost in get_neighbors(current_node[0]):  # Get the neighbors of the current node
+        for next_node, cost, action in get_neighbors(current_node[0]):  # Get the neighbors of the current node
             cost_to_go = ((goal[0] - next_node[0])**2 + (goal[1] - next_node[1])**2)**0.5
             theta_normalized = next_node[2] % 360
             theta_index = theta_normalized // 30
@@ -142,37 +168,76 @@ def a_star(start, goal):
                 # cv2.circle(canvas, (int(round(next_node[0])), int(round(next_node[1]))), 1, (0, 0, 255), -1)
                 canvas[next_node[1], next_node[0]] = (255, 0, 0)
                 # canvas_array[next_node[0], next_node[1]] = np.inf
-                came_from[next_node] = current_node[0]
+                came_from[next_node] = (current_node[0], action)
                 count += 1
                 if count%100 == 0:                    
                     out.write(canvas)
     return None, None, None  # Return None if no path is found
 
+# def reconstruct_path(came_from, start, goal):
+#     # Start with the goal node and work backwards to the start
+#     current = goal
+#     path = [current]
+#     while current != start:
+#         current = came_from[current]  # Move to the previous node in the path
+#         path.append(current)
+#     path.reverse()  # Reverse the path to go from start to goal
+#     return path
+
+# def reconstruct_path(came_from, start, goal):
+#     current = goal
+#     path_with_velocities = [(current, (0, 0))]
+#     while current != start:
+#         # Retrieve the current node and the velocities used to reach it
+#         node_info = came_from[current]
+#         prev_node, velocities = node_info[0], node_info[1]
+#         path_with_velocities.append((current, velocities))
+#         current = prev_node
+#     path_with_velocities.reverse()  # Reverse to get the correct order from start to goal
+#     return path_with_velocities
+
 def reconstruct_path(came_from, start, goal):
-    # Start with the goal node and work backwards to the start
     current = goal
-    path = [current]
+    # Initialize path_with_velocities with the goal node; velocities can be set to (0,0) or to the actual values if available.
+    path_with_velocities = [(current, came_from[current][1] if current in came_from else (0, 0))]
+    
+    # Loop until the start node is reached.
     while current != start:
-        current = came_from[current]  # Move to the previous node in the path
-        path.append(current)
-    path.reverse()  # Reverse the path to go from start to goal
-    return path
+        # Retrieve the current node and the velocities used to reach it.
+        node_info = came_from[current]
+        prev_node, velocities = node_info  # Assuming node_info is a tuple of (prev_node, velocities)
+        
+        # Move to the previous node in the path.
+        current = prev_node
+        
+        # Add the previous node and its velocities to the path list.
+        path_with_velocities.append((current, velocities))
+    
+    # Reverse the path to get the correct order from start to goal.
+    path_with_velocities.reverse()
+    
+    return path_with_velocities
+
+
 
 # Function to visualize the path
 def visualize_path(path):
-    count = 0
+    V = []
     for i in range(len(path)-1):
-        x, y, t = path[i]
-        xn, yn, tn = path[i+1]
+        x, y, t = path[i][0]
+        xn, yn, tn = path[i+1][0]
+        Linear_velocity = ((path[i][1][0] + path[i][1][1]) * R/2)/100
+        Angular_velocity = -((path[i][1][1] - path[i][1][0]) * R / L)
+        V.append((Linear_velocity, Angular_velocity))
+        print("Linear Velocity: ", Linear_velocity, "Angular Velocity: ", Angular_velocity)
         
         cv2.arrowedLine(canvas, (x, y), (xn,yn), (0, 0, 255), 1)
-        count += 1
-        if count%1 == 0:
-            out.write(canvas)
+        out.write(canvas)
     cv2.destroyAllWindows()       
     for i in range(30):
         out.write(canvas)
     cv2.imshow('Path', canvas)
+    return V
 
 print('''
 _____________________________________
@@ -296,7 +361,7 @@ if came_from is None:
     print("Execution time: %.4f seconds" % execution_time)
     exit()
 path = reconstruct_path(came_from, start_node, goal)
-visualize_path(path)
+velocities = visualize_path(path)
 
 end_time = time.time()
 execution_time = end_time - start_time
@@ -307,4 +372,23 @@ for i in range(30):
 out.release()
 print("Execution time: %.4f seconds" % execution_time)
 cv2.waitKey(0)
+
+def main(velocities):
+    rclpy.init()
+    velocity_publisher = VelocityPublisher()
+    try:
+        for velocity in velocities:
+            linear_vel, angular_vel = velocity
+            velocity_publisher.publish_velocity(linear_vel, angular_vel)
+            time.sleep(1)  # Adjust as needed, here it's set to publish each velocity for 1 second
+    except KeyboardInterrupt:
+        pass  # Handle Ctrl+C gracefully
+    finally:
+        velocity_publisher.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    # Assuming `velocities` is a list of (linear_velocity, angular_velocity) tuples
+    main(velocities)
+
 cv2.destroyAllWindows()
