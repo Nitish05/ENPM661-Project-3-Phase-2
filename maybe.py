@@ -2,14 +2,11 @@
 # Testing curves
 
 # Import necessary libraries
-
-
-
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 
-from pynput import keyboard
+# from pynput import keyboard
 import cv2
 import numpy as np
 from queue import PriorityQueue
@@ -22,7 +19,7 @@ L = 28.7
 
 canvas_height = 200
 canvas_width = 600
-robo_radius = 22.0
+# robo_radius = 22.0
 
 clearance_color = (127, 127, 127)
 obstacle_color = (0, 0, 0)
@@ -93,7 +90,7 @@ def get_neighbors(node):
     initial_theta_rad = np.deg2rad(initial_theta)
     
     action_set = [(0, RPM1), (RPM1, 0), (RPM1, RPM1), (0, RPM2), (RPM2, 0), (RPM2, RPM2), (RPM1, RPM2), (RPM2, RPM1)]
-    # action_set = [(0, Ul), (Ul, 0), (Ul, Ul), (0, Ur), (Ur, 0), (Ur, Ur), (Ul, Ur), (Ur, Ul) ]
+  
 
     for action in action_set:
         X_new, Y_new, thetan = initial_x, initial_y, initial_theta_rad
@@ -101,11 +98,7 @@ def get_neighbors(node):
         vel = []
         Vl = action[0] * K
         Vr = action[1] * K
-
-   
-
         t = 0  # Reset t for each action
-
         while t < 1:
             t += dt
   
@@ -121,15 +114,7 @@ def get_neighbors(node):
             if is_free(X_new, Y_new):
                 # pass
                 cv2.line(canvas, (int(round(Xs)), int(round(Ys))), (int(round(X_new)), int(round(Y_new))), (255, 0, 0), 1)
-            
-        
-            
-
-       
         thetan_deg = np.rad2deg(thetan) % 360
-        
-
-      
         if is_free(X_new, Y_new):
             cost = ((initial_x - X_new)**2 + (initial_y - Y_new)**2)**0.5
             neighbours.append(((X_new,Y_new, thetan_deg), cost, vel))
@@ -172,38 +157,25 @@ def a_star(start, goal):
                 canvas_array[int(round(next_node[0])), int(round(next_node[1]))] = np.inf
                 came_from[next_node] = (current_node[0], action)
                 count += 1
-                if count%100 == 0:  
-                    # cv2.resize(canvas, (600, 200))                  
-                    out.write(canvas)
+                if count%10 == 0:  
+                    # cv2.resize(canvas, (600, 200)) 
+                    canvas_resized = cv2.resize(canvas, (1200, 400), interpolation=cv2.INTER_AREA)                 
+                    out.write(canvas_resized)
     return None, None, None  # Return None if no path is found
-
-
 
 def reconstruct_path(came_from, start, goal):
     current = goal
- 
     path_with_velocities = [(current, came_from[current][1] if current in came_from else (0, 0))]
-    
-    # Loop until the start node is reached.
     while current != start:
         # Retrieve the current node and the velocities used to reach it.
         node_info = came_from[current]
-        prev_node, velocities = node_info  # Assuming node_info is a tuple of (prev_node, velocities)
-        
-        # Move to the previous node in the path.
+        prev_node, velocities = node_info
         current = prev_node
-        
-        # Add the previous node and its velocities to the path list.
         path_with_velocities.append((current, velocities))
-    
     # Reverse the path to get the correct order from start to goal.
     path_with_velocities.reverse()
     
     return path_with_velocities
-
-
-
-
 
 def visualize_path(path):
     V = []
@@ -212,23 +184,15 @@ def visualize_path(path):
         next_node = path[i + 1][0]
         x, y, t = current_node
         xn, yn, tn = next_node
-        
-        # Assuming `velocities` is a list of (linear_velocity, angular_velocity) tuples
         for linear_vel, angular_vel in velocities:
-            # Process each velocity pair as needed
-            print("Linear Velocity: ", linear_vel/100, "Angular Velocity: ", -angular_vel)
             V.append((linear_vel/100, -angular_vel))
-            
-            # For visualization purposes, you might only want to draw the move from the first or last velocity pair
             cv2.arrowedLine(canvas, (int(round(x)), int(round(y))), (int(round(xn)),int(round(yn))), (0, 0, 255), 1)
-            out.write(canvas)
-            # Adjust your drawing logic here accordingly
-
-    # Finalize your visualization here if necessary
+            canvas_resized = cv2.resize(canvas, (1200, 400), interpolation=cv2.INTER_AREA)
+            out.write(canvas_resized)
     cv2.destroyAllWindows()       
     for i in range(30):
-        out.write(canvas)
-    cv2.imshow('Path', canvas)
+        out.write(canvas_resized)
+    cv2.imshow('Path', canvas_resized)
     return V
 
 print('''
@@ -240,92 +204,133 @@ _____________________________________
 _/____|____(____/___(_ __(___(_/_____
                                      
 ''')
-     
 
 while True:
-    print("Clearance distance should be a positive number")
-    clearance_distance = input("Enter the clearance distance: ")           # User input for clearance distance
-    if clearance_distance.isdigit() and int(clearance_distance) >= 0:
-        clearance_distance = int(clearance_distance)
+    print("Do you want procede to Gazebo mode or 2D mode?\n")
+    print("1. Gazebo Mode.")
+    print("2. 2D Mode.")
+    mode = input("Enter the mode: ")
+    if mode in ['1', '2']:
         break
-    
-# while True:
-#     print("Robot radius should be a positive number")
-#     robo_radius = input("Enter the robot radius: ")                       # User input for robot radius
-#     if robo_radius.isdigit() and int(robo_radius) >= 0:
-#         robo_radius = int(robo_radius)
-#         break
-
-print("\nGenerating the map...\n")
-
-while True:
-    print("Enter the RPM values for the left and right wheels eg. 10, 20")
-    RPM1 = input("Enter the RPM 1: ")
-    RPM2 = input("Enter the RPM 2: ")
-    if RPM1.isdigit() and RPM2.isdigit():
-        RPM1 = int(RPM1)
-        RPM2 = int(RPM2)
-        break
-# Generate the map
-for x in range(canvas_width):
-    for y in range(canvas_height):
-        if clearance(x, y, clearance_distance):
-            canvas[y, x] = clearance_color
-        if obstacles((x, y)):
-            canvas[y, x] = obstacle_color
-
-canvas_array = np.zeros((canvas_width, canvas_height))
-for x in range(canvas_width):
-    for y in range(canvas_height):
-        if all(canvas[y, x] != free_space_color):
-            canvas_array[x, y] = np.inf
-        else:
-            canvas_array[x, y] = 0
-
-
-out = cv2.VideoWriter('A_star.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (canvas_width, canvas_height))
-
-C = clearance_distance + robo_radius + 1
-Xc = canvas_width - C
-Yc = canvas_height - C
-plt.imshow(canvas)
-# User input for start and goal nodes        
-while True:
-    print(f"The start node and goal node should be within the canvas dimensions ({C}-{Xc}, {C}-{Yc}) and not inside an obstacle.\n")
-    Xi = input("Enter the start node X: ")
-    Yi = input("Enter the start node Y: ")
-    Ti = input("Enter the start node Angle: ")
-    Xi = int(Xi)
-    Yi = int(Yi)
-    Ti = int(Ti)
-    
-    if not (Xi < 0 or Xi >= canvas_width or Yi < 0 or Yi >= canvas_height):    # Check if the start node is within the canvas dimensions
-        if is_free(Xi, Yi):
-            break
-        else:
-            print("Start node is inside an obstacle")
     else:
-        print("Start node is out of bounds.")
+        print("Invalid mode. Please enter a valid mode.")
 
-
-
-while True:
-    Xg = input("Enter the goal node X: ")
-    Yg = input("Enter the goal node Y: ")
-    To = input("Enter the goal node Angle: ")
-    Xg = int(Xg)
-    Yg = int(Yg)
-    To = int(To)
-
-    if not (Xg < 0 or Xg >= canvas_width or Yg < 0 or Yg >= canvas_height):    # Check if the goal node is within the canvas dimensions
-        if is_free(Xg, Yg): 
+def get_clearance():
+    while True:
+        print("Clearance distance should be a positive number")
+        clearance_distance = input("Enter the clearance distance: ")           # User input for clearance distance
+        if clearance_distance.isdigit() and int(clearance_distance) >= 0:
+            clearance_distance = int(clearance_distance)
             break
-        else:
-            print("Goal node is inside an obstacle")
-    else:
-        print("Goal node is inside an obstacle or out of bounds.")
+        
+    while True:
+        print("Robot radius should be a positive number")
+        robo_radius = input("Enter the robot radius: ")                       # User input for robot radius
+        if robo_radius.isdigit() and int(robo_radius) >= 0:
+            robo_radius = int(robo_radius)
+            break
+    return clearance_distance, robo_radius
 
-# Round the angles to the nearest multiple of 30
+def generate_map():
+    print("\nGenerating the map...\n")
+
+    # Generate the map
+    for x in range(canvas_width):
+        for y in range(canvas_height):
+            if clearance(x, y, clearance_distance):
+                canvas[y, x] = clearance_color
+            if obstacles((x, y)):
+                canvas[y, x] = obstacle_color
+
+    canvas_array = np.zeros((canvas_width, canvas_height))
+    for x in range(canvas_width):
+        for y in range(canvas_height):
+            if all(canvas[y, x] != free_space_color):
+                canvas_array[x, y] = np.inf
+            else:
+                canvas_array[x, y] = 0
+    return canvas, canvas_array
+
+def get_start(): 
+    C = clearance_distance + robo_radius + 1
+    Xc = canvas_width - C
+    Yc = canvas_height - C      
+    while True:
+        print(f"\nThe start node and goal node should be within the canvas dimensions ({C}-{Xc}, {C}-{Yc}) and not inside an obstacle.\n")
+        Xi = input("Enter the start node X: ")
+        Yi = input("Enter the start node Y: ")
+        Ti = input("Enter the start node Angle: ")
+        Xi = int(Xi)
+        Yi = int(Yi)
+        Ti = int(Ti)
+        
+        if not (Xi < 0 or Xi >= canvas_width or Yi < 0 or Yi >= canvas_height):    # Check if the start node is within the canvas dimensions
+            if is_free(Xi, Yi):
+                break
+            else:
+                print("Start node is inside an obstacle")
+        else:
+            print("Start node is out of bounds.")
+    return Xi, Yi, Ti
+
+def get_goal():
+    C = clearance_distance + robo_radius + 1
+    Xc = canvas_width - C
+    Yc = canvas_height - C
+    while True:
+        if mode == '1':
+            print(f"\nThe start node and goal node should be within the canvas dimensions ({C}-{Xc}, {C}-{Yc}) and not inside an obstacle.\n")
+        Xg = input("Enter the goal node X: ")
+        Yg = input("Enter the goal node Y: ")
+        To = input("Enter the goal node Angle: ")
+        Xg = int(Xg)
+        Yg = int(Yg)
+        To = int(To)
+
+        if not (Xg < 0 or Xg >= canvas_width or Yg < 0 or Yg >= canvas_height):    # Check if the goal node is within the canvas dimensions
+            if is_free(Xg, Yg): 
+                break
+            else:
+                print("Goal node is inside an obstacle")
+        else:
+            print("Goal node is inside an obstacle or out of bounds.")
+    return Xg, Yg, To
+
+def get_rpm():
+    while True:
+        print("Enter the RPM values for the left and right wheels eg. 10, 20")
+        RPM1 = input("Enter the RPM 1: ")
+        RPM2 = input("Enter the RPM 2: ")
+        if RPM1.isdigit() and RPM2.isdigit():
+            RPM1 = int(RPM1)
+            RPM2 = int(RPM2)
+            break
+    return RPM1, RPM2
+
+    
+if mode == '1':
+    print("\nGazebo mode selected.\n")
+    clearance_distance = 2
+    RPM1 = 10
+    RPM2 = 20
+    robo_radius = 22
+    canvas, canvas_array = generate_map()
+    Xi = 50
+    Yi = 95
+    Ti = 0
+    Xg, Yg, To = get_goal()
+
+else:
+    print("\n2D mode selected.\n")
+    clearance_distance, robo_radius = get_clearance()
+    canvas, canvas_array = generate_map()
+    RPM1, RPM2 = get_rpm()
+    Xi, Yi, Ti = get_start()
+    Xg, Yg, To = get_goal()  
+  
+
+out = cv2.VideoWriter('A_star.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (canvas_width * 2, canvas_height * 2 ))
+
 Ti = Ti % 360
 Ti = round(Ti/30)*30                                          # Round the angle to the nearest multiple of 30
 To = To % 360
@@ -333,7 +338,7 @@ To = round(To/30)*30                                         # Round the angle t
 
 print("Start Node: ", (int(Xi), int(Yi), int(Ti)))
 print("Goal Node: ", (int(Xg), int(Yg), int(To)))
-
+print("\nCalculating the path...")
 Yi = abs(canvas_height - int(Yi))
 start_node = (int(Xi), int(Yi), int(Ti))
 
@@ -350,9 +355,9 @@ for x in range(canvas_width):
 
 cv2.circle(canvas, (Xi, Yi), 2, (0, 0, 255), -1)
 cv2.circle(canvas, (Xg, Yg), 2, (0, 255, 0), -1)
-
+canvas_resized = cv2.resize(canvas, (1200, 400), interpolation=cv2.INTER_AREA)
 for j in range(30):
-    out.write(canvas)
+    out.write(canvas_resized)
 
 
 start_time = time.time()
@@ -369,8 +374,9 @@ velocities = visualize_path(path)
 end_time = time.time()
 execution_time = end_time - start_time
 
+canvas_resized = cv2.resize(canvas, (1200, 400), interpolation=cv2.INTER_AREA)
 for i in range(30):
-    out.write(canvas)
+    out.write(canvas_resized)
 
 out.release()
 print("Execution time: %.4f seconds" % execution_time)
@@ -392,6 +398,7 @@ def main(velocities):
         rclpy.shutdown()
 
 if __name__ == '__main__':
-    main(velocities)
+    if mode == '1':
+        main(velocities)
 
 cv2.destroyAllWindows()
