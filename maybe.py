@@ -1,17 +1,47 @@
 #!/usr/bin/env python3
-# Testing curves
 
 # Import necessary libraries
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
 
-# from pynput import keyboard
 import cv2
 import numpy as np
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
 import time
+USE_ROS =False
+
+print('''
+_____________________________________
+    __          __                   
+    / |       /    )                 
+---/__|-------\------_/_----__---)__-
+  /   |        \     /    /   ) /   )
+_/____|____(____/___(_ __(___(_/_____
+                                     
+''')
+
+while True:
+    mode = input("Enter the mode (1 for Gazebo Mode, 2 for 2D Mode): ")
+    if mode in ['1', '2']:
+        break
+    else:
+        print("Invalid mode. Please enter a valid mode.")
+if mode == '1':
+    USE_ROS = True
+
+if USE_ROS:
+    try:
+        import rclpy
+        from rclpy.node import Node
+        from geometry_msgs.msg import Twist
+        # Any other ROS imports
+        ROS_IMPORTED = True
+    except ImportError:
+        print("ROS2 libraries are not installed. Gazebo mode will not function.")
+        mode = '2'
+        ROS_IMPORTED = False
+else:
+    ROS_IMPORTED = False
+    mode = '2'
 
 WhR = 3.3
 K = (2*np.pi*WhR)/60
@@ -26,18 +56,19 @@ obstacle_color = (0, 0, 0)
 free_space_color = (255, 255, 255)
 threshold = 1.0
 
-class VelocityPublisher(Node):
-    def __init__(self):
-        super().__init__('velocity_publisher')
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
-        time.sleep(2)  # Give some time for the publisher to set up
+if ROS_IMPORTED:
+    class VelocityPublisher(Node):
+        def __init__(self):
+            super().__init__('velocity_publisher')
+            self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+            time.sleep(2)  # Give some time for the publisher to set up
 
-    def publish_velocity(self, linear_velocity, angular_velocity):
-        msg = Twist()
-        msg.linear.x = linear_velocity
-        msg.angular.z = angular_velocity
-        self.publisher_.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg)
+        def publish_velocity(self, linear_velocity, angular_velocity):
+            msg = Twist()
+            msg.linear.x = linear_velocity
+            msg.angular.z = angular_velocity
+            self.publisher_.publish(msg)
+            self.get_logger().info('Publishing: "%s"' % msg)
 
 # Initialize a white canvas
 canvas = np.ones((canvas_height, canvas_width, 3), dtype="uint8") * 255
@@ -88,10 +119,7 @@ def get_neighbors(node):
     initial_x, initial_y, initial_theta = node
     # Convert initial orientation to radians for calculation
     initial_theta_rad = np.deg2rad(initial_theta)
-    
     action_set = [(0, RPM1), (RPM1, 0), (RPM1, RPM1), (0, RPM2), (RPM2, 0), (RPM2, RPM2), (RPM1, RPM2), (RPM2, RPM1)]
-  
-
     for action in action_set:
         X_new, Y_new, thetan = initial_x, initial_y, initial_theta_rad
 
@@ -112,7 +140,6 @@ def get_neighbors(node):
             thetan += AVn* dt
        
             if is_free(X_new, Y_new):
-                # pass
                 cv2.line(canvas, (int(round(Xs)), int(round(Ys))), (int(round(X_new)), int(round(Y_new))), (255, 0, 0), 1)
         thetan_deg = np.rad2deg(thetan) % 360
         if is_free(X_new, Y_new):
@@ -195,25 +222,17 @@ def visualize_path(path):
     cv2.imshow('Path', canvas_resized)
     return V
 
-print('''
-_____________________________________
-    __          __                   
-    / |       /    )                 
----/__|-------\------_/_----__---)__-
-  /   |        \     /    /   ) /   )
-_/____|____(____/___(_ __(___(_/_____
-                                     
-''')
 
-while True:
-    print("Do you want procede to Gazebo mode or 2D mode?\n")
-    print("1. Gazebo Mode.")
-    print("2. 2D Mode.")
-    mode = input("Enter the mode: ")
-    if mode in ['1', '2']:
-        break
-    else:
-        print("Invalid mode. Please enter a valid mode.")
+
+# while True:
+#     print("Do you want procede to Gazebo mode or 2D mode?\n")
+#     print("1. Gazebo Mode.")
+#     print("2. 2D Mode.")
+#     mode = input("Enter the mode: ")
+#     if mode in ['1', '2']:
+#         break
+#     else:
+#         print("Invalid mode. Please enter a valid mode.")
 
 def get_clearance():
     while True:
