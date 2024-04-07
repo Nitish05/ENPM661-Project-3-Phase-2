@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Testing saving wheel velocities along with the path
+# Testing curves
 
 # Import necessary libraries
 
@@ -16,14 +16,8 @@ from queue import PriorityQueue
 import matplotlib.pyplot as plt
 import time
 
-
-RPM1 = 10
-RPM2 = 20
 WhR = 3.3
 K = (2*np.pi*WhR)/60
-# Ul = RPM1 * K
-# Ur = RPM2 * K
-# print(Ul, Ur)
 L = 28.7
 
 canvas_height = 200
@@ -79,43 +73,7 @@ def clearance(x, y, clearance):
     ]
     return any(clearance_zones)
 
-# def obstacles(node):
-#     x, y = node
-#     Circ_center = (420, 120)
-#     R = 600
-#     Xc, Yc = Circ_center
-#     y = abs(y - canvas_height)
-#     obstacles = [
-#         (x >= 1500 and x <= 1750 and y <= 2000 and y >= 1000), 
-#         (x >= 2500 and x <= 2750 and y <= 1000 and y >= 0),
-#         (((x - Xc)**2 + (y - Yc)**2) <= R**2),        
-#     ]
-#     return any(obstacles)
 
-# def clearance(x, y, clearance):
-#     clearance = clearance + robo_radius
-#     Circ_center = (4200, 1200)
-#     R = 600 + clearance
-#     Xc, Yc = Circ_center
-#     y = abs(y - canvas_height)
-    
-#     clearance_zones = [
-#         (x >= 1500 - clearance and x <= 1750 + clearance and y <= 2000 + clearance  and y >= 1000 - clearance),
-#         (x >= 2500 - clearance and x <= 2750 + clearance and y <= 1000 + clearance and y >= 0 - clearance),
-#         (((x - Xc)**2 + (y - Yc)**2) <= R**2),
-#         (x <= clearance or x >= canvas_width - clearance or y <= clearance or y >= canvas_height - clearance),
-#     ]
-#     return any(clearance_zones)
-
-
-# def is_free(x, y):
-#     x = int(round(x))
-#     y = int(round(y))
-#     if x >= 0 and x < canvas_width and y >= 0 and y < canvas_height:
-#         return all(canvas[y, x] == free_space_color) or all(canvas[y, x] == (0, 255, 0)) or all(canvas[y, x] == (0, 0, 255))
-#         # return all(canvas[y, x] == free_space_color) or all(canvas[y, x] == (0, 255, 0)) or all(canvas[y, x] == (0, 0, 255))
-#     else:
-#         return False
 
 def is_free(x, y):
     x = int(round(x))
@@ -144,28 +102,27 @@ def get_neighbors(node):
         Vl = action[0] * K
         Vr = action[1] * K
 
-        # x += 0.5 * R * (action[0] + action[1]) * np.cos(thetan) * dt
-        # y += 0.5 * R * (action[0] + action[1]) * np.sin(thetan) * dt
-        # thetan += (R / L) * (action[1] - action[0]) * dt
+   
 
         t = 0  # Reset t for each action
 
         while t < 1:
             t += dt
-            # X_new += 0.5 * WhR * (action[0] + action[1]) * np.cos(thetan) * dt
-            # Y_new += 0.5 * WhR * (action[0] + action[1]) * np.sin(thetan) * dt
-            # thetan += (WhR / L) * (action[1] - action[0]) * dt
+  
             Xs = X_new
             Ys = Y_new
-            Vn = 0.5 * (Vl + Vr) 
+            Vn = 0.5 * (Vl + Vr)
             AVn = (Vr - Vl) / L
-            vel.append((Vn, AVn))
+            vel.append((Vn, AVn))            
             X_new += Vn * np.cos(thetan) * dt
             Y_new += Vn * np.sin(thetan) * dt
             thetan += AVn* dt
-            print("X_new: ", X_new, "Y_new: ", Y_new, "thetan: ", thetan)
-            # plt.plot([Xs, X_new], [Ys, Y_new], color = 'b', linewidth = 0.75)
+       
+            if is_free(X_new, Y_new):
+                # pass
+                cv2.line(canvas, (int(round(Xs)), int(round(Ys))), (int(round(X_new)), int(round(Y_new))), (255, 0, 0), 1)
             
+        
             
 
        
@@ -175,53 +132,11 @@ def get_neighbors(node):
       
         if is_free(X_new, Y_new):
             cost = ((initial_x - X_new)**2 + (initial_y - Y_new)**2)**0.5
-            # cost = 1
-            # neighbours.append(((X_new, Y_new, thetan_deg), cost, (action[0], action[1])))
             neighbours.append(((X_new,Y_new, thetan_deg), cost, vel))
-            # cv2.circle(canvas, (int(round(X_new)), int(round(Y_new))), 1, (255, 0, 0), -1)
+           
         
     return neighbours
 
-# def get_neighbors(node):
-#     dt = 0.1
-#     neighbours = []
-#     initial_x, initial_y, initial_theta = node
-#     # Convert initial orientation to radians for calculation
-#     initial_theta_rad = np.deg2rad(initial_theta)
-    
-#     action_set = [(0, RPM1), (RPM1, 0), (RPM1, RPM1), (0, RPM2), (RPM2, 0), (RPM2, RPM2), (RPM1, RPM2), (RPM2, RPM1)]
-
-#     for action in action_set:
-#         X_new, Y_new, thetan = initial_x, initial_y, initial_theta_rad
-
-#         vel = []
-#         Vl = action[0] * K
-#         Vr = action[1] * K
-
-#         t = 0  # Reset t for each action
-
-#         while t < 1:
-#             t += dt
-#             Vn = 0.5 * (Vl + Vr)
-#             AVn = (Vr - Vl) / L
-#             vel.append((Vn, AVn))
-#             X_new += Vn * np.cos(thetan) * dt
-#             # Invert Y_new calculation to flip the y-axis
-#             Y_new -= Vn * np.sin(thetan) * dt  # Subtract instead of adding to flip the axis
-#             thetan += AVn * dt
-            
-#         # Convert thetan back to degrees for display or further calculations
-#         thetan_deg = np.rad2deg(thetan) % 360
-
-#         # No need to flip Y_new here, as we're using canvas coordinates directly
-#         if is_free(X_new, canvas_height - Y_new):  # Flip y-axis for the check
-#             cost = ((initial_x - X_new)**2 + (initial_y - Y_new)**2)**0.5
-#             neighbours.append(((X_new, canvas_height - Y_new, thetan_deg), cost, vel))  # Store flipped y-axis value for consistency
-        
-#     return neighbours
-
-
-# Function to check if the goal is reached
 def check_goal_reached(current_node, goal):
     distance = ((current_node[0] - goal[0]) ** 2 + (current_node[1] - goal[1]) ** 2) ** 0.5
     return distance < threshold
@@ -253,11 +168,8 @@ def a_star(start, goal):
                 cost_so_far[next_node] = nc  # Update the cost so far
                 priority = new_cost   # Calculate the priority
                 pq.put((priority, (next_node, nc)))   # Add the node to the priority queue
-                # cv2.arrowedLine(canvas, (current_node[0][0], current_node[0][1]), (next_node[0], next_node[1]), (255, 0, 0), 1)
-                # cv2.circle(canvas, (int(round(next_node[0])), int(round(next_node[1]))), 1, (0, 0, 255), -1)
-                # canvas[int(round(next_node[1])), int(round(next_node[0]))] = (255, 0, 0)
+                canvas[int(round(next_node[1])), int(round(next_node[0]))] = (255, 0, 0)
                 canvas_array[int(round(next_node[0])), int(round(next_node[1]))] = np.inf
-                # canvas_array[next_node[0], next_node[1]] = np.inf
                 came_from[next_node] = (current_node[0], action)
                 count += 1
                 if count%100 == 0:  
@@ -265,31 +177,11 @@ def a_star(start, goal):
                     out.write(canvas)
     return None, None, None  # Return None if no path is found
 
-# def reconstruct_path(came_from, start, goal):
-#     # Start with the goal node and work backwards to the start
-#     current = goal
-#     path = [current]
-#     while current != start:
-#         current = came_from[current]  # Move to the previous node in the path
-#         path.append(current)
-#     path.reverse()  # Reverse the path to go from start to goal
-#     return path
 
-# def reconstruct_path(came_from, start, goal):
-#     current = goal
-#     path_with_velocities = [(current, (0, 0))]
-#     while current != start:
-#         # Retrieve the current node and the velocities used to reach it
-#         node_info = came_from[current]
-#         prev_node, velocities = node_info[0], node_info[1]
-#         path_with_velocities.append((current, velocities))
-#         current = prev_node
-#     path_with_velocities.reverse()  # Reverse to get the correct order from start to goal
-#     return path_with_velocities
 
 def reconstruct_path(came_from, start, goal):
     current = goal
-    # Initialize path_with_velocities with the goal node; velocities can be set to (0,0) or to the actual values if available.
+ 
     path_with_velocities = [(current, came_from[current][1] if current in came_from else (0, 0))]
     
     # Loop until the start node is reached.
@@ -311,32 +203,7 @@ def reconstruct_path(came_from, start, goal):
 
 
 
-# Function to visualize the path
-# def visualize_path(path):
-#     V = []
-#     for i in range(len(path)-1):
-#         x, y, t = path[i][0]
-#         xn, yn, tn = path[i+1][0]
-#         vr = path[i][1][1]*K
-#         vl = path[i][1][0]*K
-#         # Linear_velocity = ((path[i][1][0] + path[i][1][1]) * R/2)/100
-#         # Angular_velocity = float((((path[i][1][0] - path[i][1][1]) * R)/ L))
-#         Angular_velocity = float(-(((vr - vl))/ L))
-#         # Linear_velocity = float((((xn-x)**2 + (yn-y)**2)**0.5)/100)
-#         Linear_velocity = ((vl + vr)*0.5)/100
-#         # Angular_velocity = float(tn -t)
 
-
-#         V.append((Linear_velocity, Angular_velocity))
-#         print("Linear Velocity: ", Linear_velocity, "Angular Velocity: ", Angular_velocity)
-        
-#         cv2.arrowedLine(canvas, (int(round(x)), int(round(y))), (int(round(xn)),int(round(yn))), (0, 0, 255), 1)
-#         out.write(canvas)
-#     cv2.destroyAllWindows()       
-#     for i in range(30):
-#         out.write(canvas)
-#     cv2.imshow('Path', canvas)
-#     return V
 
 def visualize_path(path):
     V = []
@@ -373,14 +240,7 @@ _____________________________________
 _/____|____(____/___(_ __(___(_/_____
                                      
 ''')
-
-# User input for step size, clearance distance and robot radius
-# while True:
-#     print("Step size should be between 1 and 10")
-#     step_size = input("Enter the step size: ")                     # User input for step size
-#     step_size = int(step_size)
-#     if step_size > 0 and step_size <= 10:
-#         break      
+     
 
 while True:
     print("Clearance distance should be a positive number")
@@ -398,6 +258,14 @@ while True:
 
 print("\nGenerating the map...\n")
 
+while True:
+    print("Enter the RPM values for the left and right wheels eg. 10, 20")
+    RPM1 = input("Enter the RPM 1: ")
+    RPM2 = input("Enter the RPM 2: ")
+    if RPM1.isdigit() and RPM2.isdigit():
+        RPM1 = int(RPM1)
+        RPM2 = int(RPM2)
+        break
 # Generate the map
 for x in range(canvas_width):
     for y in range(canvas_height):
@@ -405,13 +273,6 @@ for x in range(canvas_width):
             canvas[y, x] = clearance_color
         if obstacles((x, y)):
             canvas[y, x] = obstacle_color
-
-# Create a 3D array to store the visited nodes
-# canvas_array = np.zeros((canvas_width, canvas_height, 1))
-# for x in range(canvas_width):
-#     for y in range(canvas_height):
-#         if all(canvas[y, x] != free_space_color):
-#             canvas_array[x, y, 0] = np.inf
 
 canvas_array = np.zeros((canvas_width, canvas_height))
 for x in range(canvas_width):
@@ -493,8 +354,6 @@ cv2.circle(canvas, (Xg, Yg), 2, (0, 255, 0), -1)
 for j in range(30):
     out.write(canvas)
 
-# plt.imshow(canvas) 
-# plt.show()
 
 start_time = time.time()
 came_from, cost_so_far, goal = a_star(start_node, goal_node)

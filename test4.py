@@ -8,35 +8,32 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-import sys
-import select
-import tty
-import termios
+
 from pynput import keyboard
 import cv2
 import numpy as np
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
 import time
-import random
 
-RPM1 = 5
-RPM2 = 10
-R = 3.3
-K = (2*np.pi*R)/60
-Ul = RPM1 * K
-Ur = RPM2 * K
-print(Ul, Ur)
+
+RPM1 = 10
+RPM2 = 20
+WhR = 3.3
+K = (2*np.pi*WhR)/60
+# Ul = RPM1 * K
+# Ur = RPM2 * K
+# print(Ul, Ur)
 L = 28.7
 
 canvas_height = 200
 canvas_width = 600
-robo_radius = 22
+robo_radius = 22.0
 
 clearance_color = (127, 127, 127)
 obstacle_color = (0, 0, 0)
 free_space_color = (255, 255, 255)
-threshold = 2.0
+threshold = 1.0
 
 class VelocityPublisher(Node):
     def __init__(self):
@@ -82,10 +79,50 @@ def clearance(x, y, clearance):
     ]
     return any(clearance_zones)
 
+# def obstacles(node):
+#     x, y = node
+#     Circ_center = (420, 120)
+#     R = 600
+#     Xc, Yc = Circ_center
+#     y = abs(y - canvas_height)
+#     obstacles = [
+#         (x >= 1500 and x <= 1750 and y <= 2000 and y >= 1000), 
+#         (x >= 2500 and x <= 2750 and y <= 1000 and y >= 0),
+#         (((x - Xc)**2 + (y - Yc)**2) <= R**2),        
+#     ]
+#     return any(obstacles)
+
+# def clearance(x, y, clearance):
+#     clearance = clearance + robo_radius
+#     Circ_center = (4200, 1200)
+#     R = 600 + clearance
+#     Xc, Yc = Circ_center
+#     y = abs(y - canvas_height)
+    
+#     clearance_zones = [
+#         (x >= 1500 - clearance and x <= 1750 + clearance and y <= 2000 + clearance  and y >= 1000 - clearance),
+#         (x >= 2500 - clearance and x <= 2750 + clearance and y <= 1000 + clearance and y >= 0 - clearance),
+#         (((x - Xc)**2 + (y - Yc)**2) <= R**2),
+#         (x <= clearance or x >= canvas_width - clearance or y <= clearance or y >= canvas_height - clearance),
+#     ]
+#     return any(clearance_zones)
+
+
+# def is_free(x, y):
+#     x = int(round(x))
+#     y = int(round(y))
+#     if x >= 0 and x < canvas_width and y >= 0 and y < canvas_height:
+#         return all(canvas[y, x] == free_space_color) or all(canvas[y, x] == (0, 255, 0)) or all(canvas[y, x] == (0, 0, 255))
+#         # return all(canvas[y, x] == free_space_color) or all(canvas[y, x] == (0, 255, 0)) or all(canvas[y, x] == (0, 0, 255))
+#     else:
+#         return False
 
 def is_free(x, y):
+    x = int(round(x))
+    y = int(round(y))
     if x >= 0 and x < canvas_width and y >= 0 and y < canvas_height:
-        return all(canvas[y, x] == free_space_color) or all(canvas[y, x] == (0, 255, 0)) or all(canvas[y, x] == (0, 0, 255))
+        if canvas_array[x, y] == 0:
+            return True
     else:
         return False
 
@@ -97,40 +134,92 @@ def get_neighbors(node):
     # Convert initial orientation to radians for calculation
     initial_theta_rad = np.deg2rad(initial_theta)
     
-    # action_set = [(0, RPM1), (RPM1, 0), (RPM1, RPM1), (0, RPM2), (RPM2, 0), (RPM2, RPM2), (RPM1, RPM2), (RPM2, RPM1)]
-    action_set = [(0, Ul), (Ul, 0), (Ul, Ul), (0, Ur), (Ur, 0), (Ur, Ur), (Ul, Ur), (Ur, Ul) ]
+    action_set = [(0, RPM1), (RPM1, 0), (RPM1, RPM1), (0, RPM2), (RPM2, 0), (RPM2, RPM2), (RPM1, RPM2), (RPM2, RPM1)]
+    # action_set = [(0, Ul), (Ul, 0), (Ul, Ul), (0, Ur), (Ur, 0), (Ur, Ur), (Ul, Ur), (Ur, Ul) ]
 
     for action in action_set:
         X_new, Y_new, thetan = initial_x, initial_y, initial_theta_rad
-        
+
+        vel = []
+        Vl = action[0] * K
+        Vr = action[1] * K
 
         # x += 0.5 * R * (action[0] + action[1]) * np.cos(thetan) * dt
         # y += 0.5 * R * (action[0] + action[1]) * np.sin(thetan) * dt
         # thetan += (R / L) * (action[1] - action[0]) * dt
+
         t = 0  # Reset t for each action
 
         while t < 1:
             t += dt
-            X_new += 0.5 * R * (action[0] + action[1]) * np.cos(thetan) * dt
-            Y_new += 0.5 * R * (action[0] + action[1]) * np.sin(thetan) * dt
-            thetan += (R / L) * (action[1] - action[0]) * dt
+            # X_new += 0.5 * WhR * (action[0] + action[1]) * np.cos(thetan) * dt
+            # Y_new += 0.5 * WhR * (action[0] + action[1]) * np.sin(thetan) * dt
+            # thetan += (WhR / L) * (action[1] - action[0]) * dt
+            Xs = X_new
+            Ys = Y_new
+            Vn = 0.5 * (Vl + Vr) 
+            AVn = (Vr - Vl) / L
+            vel.append((Vn, AVn))
+            X_new += Vn * np.cos(thetan) * dt
+            Y_new += Vn * np.sin(thetan) * dt
+            thetan += AVn* dt
+            print("X_new: ", X_new, "Y_new: ", Y_new, "thetan: ", thetan)
+            # plt.plot([Xs, X_new], [Ys, Y_new], color = 'b', linewidth = 0.75)
             
             
 
-        # Convert thetan back to degrees for display or further calculations
+       
         thetan_deg = np.rad2deg(thetan) % 360
-        X_new = int(round(X_new))
-        Y_new = int(round(Y_new))
-        thetan_deg = int(round(thetan_deg))
-        # canvas[Y_new, X_new] = (255, 0, 0)
-        # print(X_new, Y_new, thetan_deg)
-        # neighbours.append(((X_new, Y_new, thetan_deg), 1))
+        
+
+      
         if is_free(X_new, Y_new):
             cost = ((initial_x - X_new)**2 + (initial_y - Y_new)**2)**0.5
-            neighbours.append(((X_new, Y_new, thetan_deg), cost, (action[0], action[1])))
+            # cost = 1
+            # neighbours.append(((X_new, Y_new, thetan_deg), cost, (action[0], action[1])))
+            neighbours.append(((X_new,Y_new, thetan_deg), cost, vel))
             # cv2.circle(canvas, (int(round(X_new)), int(round(Y_new))), 1, (255, 0, 0), -1)
         
     return neighbours
+
+# def get_neighbors(node):
+#     dt = 0.1
+#     neighbours = []
+#     initial_x, initial_y, initial_theta = node
+#     # Convert initial orientation to radians for calculation
+#     initial_theta_rad = np.deg2rad(initial_theta)
+    
+#     action_set = [(0, RPM1), (RPM1, 0), (RPM1, RPM1), (0, RPM2), (RPM2, 0), (RPM2, RPM2), (RPM1, RPM2), (RPM2, RPM1)]
+
+#     for action in action_set:
+#         X_new, Y_new, thetan = initial_x, initial_y, initial_theta_rad
+
+#         vel = []
+#         Vl = action[0] * K
+#         Vr = action[1] * K
+
+#         t = 0  # Reset t for each action
+
+#         while t < 1:
+#             t += dt
+#             Vn = 0.5 * (Vl + Vr)
+#             AVn = (Vr - Vl) / L
+#             vel.append((Vn, AVn))
+#             X_new += Vn * np.cos(thetan) * dt
+#             # Invert Y_new calculation to flip the y-axis
+#             Y_new -= Vn * np.sin(thetan) * dt  # Subtract instead of adding to flip the axis
+#             thetan += AVn * dt
+            
+#         # Convert thetan back to degrees for display or further calculations
+#         thetan_deg = np.rad2deg(thetan) % 360
+
+#         # No need to flip Y_new here, as we're using canvas coordinates directly
+#         if is_free(X_new, canvas_height - Y_new):  # Flip y-axis for the check
+#             cost = ((initial_x - X_new)**2 + (initial_y - Y_new)**2)**0.5
+#             neighbours.append(((X_new, canvas_height - Y_new, thetan_deg), cost, vel))  # Store flipped y-axis value for consistency
+        
+#     return neighbours
+
 
 # Function to check if the goal is reached
 def check_goal_reached(current_node, goal):
@@ -166,11 +255,13 @@ def a_star(start, goal):
                 pq.put((priority, (next_node, nc)))   # Add the node to the priority queue
                 # cv2.arrowedLine(canvas, (current_node[0][0], current_node[0][1]), (next_node[0], next_node[1]), (255, 0, 0), 1)
                 # cv2.circle(canvas, (int(round(next_node[0])), int(round(next_node[1]))), 1, (0, 0, 255), -1)
-                canvas[next_node[1], next_node[0]] = (255, 0, 0)
+                # canvas[int(round(next_node[1])), int(round(next_node[0]))] = (255, 0, 0)
+                canvas_array[int(round(next_node[0])), int(round(next_node[1]))] = np.inf
                 # canvas_array[next_node[0], next_node[1]] = np.inf
                 came_from[next_node] = (current_node[0], action)
                 count += 1
-                if count%100 == 0:                    
+                if count%100 == 0:  
+                    # cv2.resize(canvas, (600, 200))                  
                     out.write(canvas)
     return None, None, None  # Return None if no path is found
 
@@ -221,18 +312,52 @@ def reconstruct_path(came_from, start, goal):
 
 
 # Function to visualize the path
+# def visualize_path(path):
+#     V = []
+#     for i in range(len(path)-1):
+#         x, y, t = path[i][0]
+#         xn, yn, tn = path[i+1][0]
+#         vr = path[i][1][1]*K
+#         vl = path[i][1][0]*K
+#         # Linear_velocity = ((path[i][1][0] + path[i][1][1]) * R/2)/100
+#         # Angular_velocity = float((((path[i][1][0] - path[i][1][1]) * R)/ L))
+#         Angular_velocity = float(-(((vr - vl))/ L))
+#         # Linear_velocity = float((((xn-x)**2 + (yn-y)**2)**0.5)/100)
+#         Linear_velocity = ((vl + vr)*0.5)/100
+#         # Angular_velocity = float(tn -t)
+
+
+#         V.append((Linear_velocity, Angular_velocity))
+#         print("Linear Velocity: ", Linear_velocity, "Angular Velocity: ", Angular_velocity)
+        
+#         cv2.arrowedLine(canvas, (int(round(x)), int(round(y))), (int(round(xn)),int(round(yn))), (0, 0, 255), 1)
+#         out.write(canvas)
+#     cv2.destroyAllWindows()       
+#     for i in range(30):
+#         out.write(canvas)
+#     cv2.imshow('Path', canvas)
+#     return V
+
 def visualize_path(path):
     V = []
-    for i in range(len(path)-1):
-        x, y, t = path[i][0]
-        xn, yn, tn = path[i+1][0]
-        Linear_velocity = ((path[i][1][0] + path[i][1][1]) * R/2)/100
-        Angular_velocity = -((path[i][1][1] - path[i][1][0]) * R / L)
-        V.append((Linear_velocity, Angular_velocity))
-        print("Linear Velocity: ", Linear_velocity, "Angular Velocity: ", Angular_velocity)
+    for i in range(len(path) - 1):
+        current_node, velocities = path[i]
+        next_node = path[i + 1][0]
+        x, y, t = current_node
+        xn, yn, tn = next_node
         
-        cv2.arrowedLine(canvas, (x, y), (xn,yn), (0, 0, 255), 1)
-        out.write(canvas)
+        # Assuming `velocities` is a list of (linear_velocity, angular_velocity) tuples
+        for linear_vel, angular_vel in velocities:
+            # Process each velocity pair as needed
+            print("Linear Velocity: ", linear_vel/100, "Angular Velocity: ", -angular_vel)
+            V.append((linear_vel/100, -angular_vel))
+            
+            # For visualization purposes, you might only want to draw the move from the first or last velocity pair
+            cv2.arrowedLine(canvas, (int(round(x)), int(round(y))), (int(round(xn)),int(round(yn))), (0, 0, 255), 1)
+            out.write(canvas)
+            # Adjust your drawing logic here accordingly
+
+    # Finalize your visualization here if necessary
     cv2.destroyAllWindows()       
     for i in range(30):
         out.write(canvas)
@@ -287,6 +412,14 @@ for x in range(canvas_width):
 #     for y in range(canvas_height):
 #         if all(canvas[y, x] != free_space_color):
 #             canvas_array[x, y, 0] = np.inf
+
+canvas_array = np.zeros((canvas_width, canvas_height))
+for x in range(canvas_width):
+    for y in range(canvas_height):
+        if all(canvas[y, x] != free_space_color):
+            canvas_array[x, y] = np.inf
+        else:
+            canvas_array[x, y] = 0
 
 
 out = cv2.VideoWriter('A_star.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30, (canvas_width, canvas_height))
@@ -346,11 +479,30 @@ start_node = (int(Xi), int(Yi), int(Ti))
 Yg = abs(canvas_height - int(Yg))
 goal_node = (int(Xg), int(Yg), int(To))
 
+canvas_array = np.zeros((canvas_width, canvas_height))
+for x in range(canvas_width):
+    for y in range(canvas_height):
+        if all(canvas[y, x] != free_space_color):
+            canvas_array[x, y] = np.inf
+        else:
+            canvas_array[x, y] = 0
+
 cv2.circle(canvas, (Xi, Yi), 2, (0, 0, 255), -1)
 cv2.circle(canvas, (Xg, Yg), 2, (0, 255, 0), -1)
 
+canvas_rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+
+plt.figure(figsize=(10, 6))  # Size is arbitrary
+plt.imshow(canvas_rgb)
+plt.title('Canvas with OpenCV Drawings')
+plt.axis('off')  # Hide the axes
+plt.show()
+
 for j in range(30):
     out.write(canvas)
+
+# plt.imshow(canvas) 
+# plt.show()
 
 start_time = time.time()
 came_from, cost_so_far, goal = a_star(start_node, goal_node)
@@ -380,15 +532,15 @@ def main(velocities):
         for velocity in velocities:
             linear_vel, angular_vel = velocity
             velocity_publisher.publish_velocity(linear_vel, angular_vel)
-            time.sleep(1)  # Adjust as needed, here it's set to publish each velocity for 1 second
+            time.sleep(0.1) 
+        velocity_publisher.publish_velocity(0.0, 0.0)  # Stop the robot
     except KeyboardInterrupt:
-        pass  # Handle Ctrl+C gracefully
+        pass
     finally:
         velocity_publisher.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':
-    # Assuming `velocities` is a list of (linear_velocity, angular_velocity) tuples
     main(velocities)
 
 cv2.destroyAllWindows()
