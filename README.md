@@ -36,7 +36,7 @@ To use this code, you need to have Python installed on your system. You can down
     python planner.py
     ```
 
-4. To run the script in Gazebo Mode, you need to have ROS2 installed on your system. If you have ROS2 installed, you can run the following command to launch the robot in gazebo:
+4. To run the script in Gazebo Mode, you need to have ROS2 installed on your system. If you have ROS2 installed and followed the instructions [here](https://github.com/shantanuparabumd/turtlebot3_project3) (the same link as in the documentation), you can run the following command to launch the robot in gazebo:
 
     ```bash
     ros2 launch turtlebot3_project3 competition_world.launch.py
@@ -153,6 +153,11 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Acknowledgements
 
 Special thanks to the ENPM 661 course instructors for providing the project requirements and guidance.
+
+## Video Links
+- [2D Mode](https://youtu.be/HQzprgOGBaI) - starting from (25, 25, 0) to (573, 173, 0) clearance 2, radius 22, RPM (10, 25)
+- [Gazebo Mode](https://youtu.be/dQbWYm2Mwug) - starting from (50, 95, 0) to (575, 175, 0)
+
 
 ## References
 https://github.com/Nitish05/ENPM-661-Project-3-A_Star
