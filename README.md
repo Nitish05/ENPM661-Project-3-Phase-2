@@ -27,68 +27,121 @@ To use this code, you need to have Python installed on your system. You can down
 2. Navigate to the project directory:
 
     ```bash
-    cd ENPM-661-Project-3-A_Star
+    cd ENPM-661-Project-3-Phase-2
     ```
 
 3. Run the main script:
 
     ```bash
-    python a_star_nitish_pranav.py
+    python planner.py
     ```
 
-4. Follow the on-screen instructions to input the start and goal positions, and the program will generate the optimal path using the A* algorithm.\
-    eg:
+4. To run the script in Gazebo Mode, you need to have ROS2 installed on your system. If you have ROS2 installed, you can run the following command to launch the robot in gazebo:
+
     ```bash
-    _____________________________________
-        __          __
-        / |       /    )
-    ---/__|-------\------_/_----__---)__-
-      /   |        \     /    /   ) /   )
-    _/____|____(____/___(_ __(___(_/_____
-
-
-    Step size should be between 1 and 10
-    Enter the step size: 10
-    Clearance distance should be a positive number
-    Enter the clearance distance: 5
-    Robot radius should be a positive number
-    Enter the robot radius: 5
-
-    Generating the map...
-
-    The start node and goal node should be within the canvas dimensions (11-1190, 11-490) and not inside an obstacle.
-
-    Enter the start node X: 11
-    Enter the start node Y: 11
-    Enter the start node Angle: 0
-    Enter the goal node X: 1000
-    Enter the goal node Y: 250
-    Enter the goal node Angle: 180
-    Start Node:  (11, 11, 0)
-    Goal Node:  (1000, 250, 180)
-
-    Running A* algorithm...
-    Goal Reached
-    Cost to Goal:  1310
-    Execution time: 13.1537 seconds
+    ros2 launch turtlebot3_project3 competition_world.launch.py
     ```
-5.  
-    - The script will prompt the user to enter the step size, clearance distance, and robot radius.
-    - The script will take a few seconds to generate the map.
-    - The script will prompt the user to enter the start and goal coordinates as well as the orientation in the start and goal node. The origin (0,0) is at the bottom left corner of the grid space.
-    - The orientation is such that 0 degrees is along the positive y-axis, 90 degrees is along the positive x-axis, 180 degrees is along the negative y-axis, and 270 degrees is along the negative x-axis. (Like a clock face or compass directions.)
-    - The orientation should in 30 degrees increments. (0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330 ...)
-    - If the orientation is not in 30 degrees increments, the script will choose the nearest orientation in 30 degrees increments. eg: 127 will be rounded to 120.
-    - If the start and goal coordinates are valid, the script will display the path from the start to the goal using the A* algorithm.
-    - If the start and goal coordinates are invalid, the script will prompt the user to enter the coordinates again.
-    - The script will also display the time taken to find the path and the cost of the path.
-    - The script will also display the path in the map.
-    - For some start and goal coordinates, the script may not find a path. In such cases, the script will display a message saying "No path found".
-    - The white cells represent the free space, the black cells represent the obstacles, the gray cells represent the clearance + the bloated region for the robot radius, the red cell represents the start node, the green cell represents the goal node, the blue cells represent the nodes visited, and the red cells represent the path.
-    - The script will also save the path and the node creation as a video named A_star.mp4 in the current directory.
-    - In the video, the start node is displayed in red, the goal node is displayed in green, the nodes visited are displayed in blue, and the path is displayed in red.
-    - The script should not take more than 5 minutes to find the path.
+    Then to run script run the following command:
 
+    ```bash
+    ros2 run turtlebot3_project3 planner.py
+    ```
+ 
+5.  
+    - The scrpit will ask the user to choose a mode (1 for Gazebo Mode, 2 for 2D Mode).
+    - Case 1:
+        - If the user selects Gazebo Mode and ROS2 libraries are installed, the script will prompt the user to enter the goal positions. The script will then generate the optimal path using the A* algorithm and display the path.
+        - If the ROS2 libraries are not installed, the script will display a message indicating that Gazebo Mode will not function, and the script will continue to run in 2D Mode.
+        - The path is displayed in a popup window.
+        - Assuming the user has already launched the robot in gazebo.
+        - Closing the popup window will start publishing the linear velocities and angular velocities to the turtlebot3 robot in gazebo.
+        - Note:
+            - The default start position is (50, 95, 0)
+            - RPM values for the left and right wheels are set to 10, 20
+            - Clearance distance is set to 2
+            ```bash
+            _____________________________________
+                __          __                   
+                / |       /    )                 
+            ---/__|-------\------_/_----__---)__-
+              /   |        \     /    /   ) /   )
+            _/____|____(____/___(_ __(___(_/_____
+                                                
+
+            Enter the mode (1 for Gazebo Mode, 2 for 2D Mode): 1    
+
+            Gazebo mode selected.
+
+
+            Generating the map...
+
+
+            The goal node should be within the canvas dimensions (25-575, 25-175) and not inside an obstacle.
+
+            Enter the goal node X: 575
+            Enter the goal node Y: 175
+            Enter the goal node Angle: 0
+            Start Node:  (50, 95, 0)
+            Goal Node:  (575, 175, 0)
+
+            Calculating the path...
+            Goal Reached
+            Cost to Goal:  659.1763334230152
+            Execution time: 31.7377 seconds
+            [INFO] [1712536727.823658395] [velocity_publisher]: Publishing: "geometry_msgs.msg.Twist(linear=geometry_msgs.msg.Vector3(x=0.017278759594743863, y=0.0, z=0.0), angular=geometry_msgs.msg.Vector3(x=0.0, y=0.0, z=-0.1204094745278318))"
+            [INFO] [1712536727.924740196] [velocity_publisher]: Publishing: "geometry_msgs.msg.Twist(linear=geometry_msgs.msg.Vector3(x=0.017278759594743863, y=0.0, z=0.0), angular=geometry_msgs.msg.Vector3(x=0.0, y=0.0, z=-0.1204094745278318))"
+            .
+            .
+            .
+            ```
+    - Case 2:
+        - If the user selects 2D Mode, the script will prompt the user to enter the clearance distance, robot radius, RPM values for the left and right wheels, start and goal positions.
+        - The script will then generate the optimal path using the A* algorithm and display the path.
+        - The path is displayed in a popup window.
+        - The script will also display the cost to the goal and the execution time.
+        ```bash
+            _____________________________________
+                __          __
+                / |       /    )
+            ---/__|-------\------_/_----__---)__-
+              /   |        \     /    /   ) /   )
+            _/____|____(____/___(_ __(___(_/_____
+
+
+            Enter the mode (1 for Gazebo Mode, 2 for 2D Mode): 1
+            ROS2 libraries are not installed. Gazebo mode will not function.
+
+            2D mode selected.
+
+            Clearance distance should be a positive number
+            Enter the clearance distance: 2
+            Robot radius should be a positive number
+            Enter the robot radius: 22
+
+            Generating the map...
+
+            Enter the RPM values for the left and right wheels eg. 10, 20
+            Enter the RPM 1: 10
+            Enter the RPM 2: 20
+
+            The start node and goal node should be within the canvas dimensions (25-575, 25-175) and not inside an obstacle.
+
+            Enter the start node X: 50
+            Enter the start node Y: 100
+            Enter the start node Angle: 0
+            Enter the goal node X: 575
+            Enter the goal node Y: 100
+            Enter the goal node Angle: 0
+            Start Node:  (50, 100, 0)
+            Goal Node:  (575, 100, 0)
+
+            Calculating the path...
+            Goal Reached
+            Cost to Goal:  611.641843668552
+            Execution time: 27.5063 seconds
+        ```
+6. The script will also save a video of the path generated. The video will be saved in the same directory as the script.
+        
 ## Contributors
 Nitish Ravisankar Raveendran - rrnitish - 120385506\
 Pranav ANV - anvpran - 1204886110
@@ -100,3 +153,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Acknowledgements
 
 Special thanks to the ENPM 661 course instructors for providing the project requirements and guidance.
+
+## References
+https://github.com/Nitish05/ENPM-661-Project-3-A_Star
