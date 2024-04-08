@@ -336,7 +336,7 @@ if mode == '1':
     robo_radius = 22
     canvas, canvas_array = generate_map()
     Xi = 50
-    Yi = 95
+    Yi = 94
     Ti = 0
     Xg, Yg, To = get_goal()
 

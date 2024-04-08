@@ -56,7 +56,7 @@ To use this code, you need to have Python installed on your system. You can down
         - Assuming the user has already launched the robot in gazebo.
         - Closing the popup window will start publishing the linear velocities and angular velocities to the turtlebot3 robot in gazebo.
         - Note:
-            - The default start position is (50, 95, 0)
+            - The default start position is (50, 94, 0)
             - RPM values for the left and right wheels are set to 10, 20
             - Clearance distance is set to 2
             ```bash
@@ -81,7 +81,7 @@ To use this code, you need to have Python installed on your system. You can down
             Enter the goal node X: 575
             Enter the goal node Y: 175
             Enter the goal node Angle: 0
-            Start Node:  (50, 95, 0)
+            Start Node:  (50, 94, 0)
             Goal Node:  (575, 175, 0)
 
             Calculating the path...
@@ -140,7 +140,7 @@ To use this code, you need to have Python installed on your system. You can down
             Cost to Goal:  611.641843668552
             Execution time: 27.5063 seconds
         ```
-6. The script will also save a video of the path generated. The video will be saved in the same directory as the script.
+6. The script will also save a video of the path generated. The video will be saved in the same directory as the script. (Note: This script will not check the goal node orientation, it will only check the goal node position)
         
 ## Contributors
 Nitish Ravisankar Raveendran - rrnitish - 120385506\
@@ -156,7 +156,7 @@ Special thanks to the ENPM 661 course instructors for providing the project requ
 
 ## Video Links
 - [2D Mode](https://youtu.be/HQzprgOGBaI) - starting from (25, 25, 0) to (573, 173, 0) clearance 2, radius 22, RPM (10, 25)
-- [Gazebo Mode](https://youtu.be/dQbWYm2Mwug) - starting from (50, 95, 0) to (575, 175, 0)
+- [Gazebo Mode](https://youtu.be/wf31SBNEQGg) - starting from (50, 94, 0) to (575, 175, 0)
 
 
 ## References
